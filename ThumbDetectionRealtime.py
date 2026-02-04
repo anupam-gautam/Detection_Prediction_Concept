@@ -14,7 +14,7 @@ Usage:
     python ThumbDetectionRealtime.py
 
 Press 'q' or ESC to quit.
-"""
+""" 
 
 import cv2
 import mediapipe as mp
@@ -46,20 +46,50 @@ options = vision.HandLandmarkerOptions(
 detector = vision.HandLandmarker.create_from_options(options)
 
 
-def detect_thumb_in_frame(frame, detector):
-    """Run hand detection on the given BGR frame and draw overlays.
+def enhance_frame_clahe(frame, clipLimit=2.0, tileGridSize=(8, 8)):
+    """Apply CLAHE to the grayscale version of the frame.
+
+    Returns:
+      enhanced_bgr: 3-channel BGR image reconstructed from enhanced grayscale
+      enhanced_gray: single-channel enhanced grayscale image (for debug)
+    """
+    # Convert to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Apply CLAHE
+    clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=tileGridSize)
+    enhanced_gray = clahe.apply(gray)
+
+    # Convert back to BGR so downstream code that expects 3 channels can use it
+    enhanced_bgr = cv2.cvtColor(enhanced_gray, cv2.COLOR_GRAY2BGR)
+    return enhanced_bgr, enhanced_gray
+
+
+def detect_thumb_in_frame(frame, detector, apply_clahe=True):
+    """Run hand detection on the given BGR frame (optionally enhanced) and draw overlays.
+
+    The enhancement step applies CLAHE to the grayscale image and converts it back
+    to a 3-channel BGR image which is then converted to RGB for MediaPipe.
 
     Returns the annotated frame and a boolean indicating if a thumb was found.
     """
-    # Convert BGR (OpenCV) -> RGB for MediaPipe
     h, w = frame.shape[:2]
 
-    # Create MediaPipe Image from the numpy array. The tasks API supports
-    # mp.Image.create_from_array for this purpose by passing frame.
+    # Optionally enhance the frame prior to detection to improve low-light performance
+    if apply_clahe:
+        enhanced_bgr, enhanced_gray = enhance_frame_clahe(frame)
+    else:
+        enhanced_bgr = frame.copy()
+        enhanced_gray = None
+
+    # Convert enhanced BGR -> RGB for MediaPipe
+    enhanced_rgb = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2RGB)
+
+    # Create MediaPipe Image from the numpy array.
     try:
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=enhanced_rgb)
+        # mp_image = mp.Image.create_from_array(enhanced_rgb)
     except Exception as e:
-        # If create_from_array isn't available, raise a helpful error
         raise RuntimeError("Could not create MediaPipe Image from array: " + str(e))
 
     # Run detection
@@ -67,8 +97,10 @@ def detect_thumb_in_frame(frame, detector):
 
     thumb_found = False
 
-    # If no hands detected, just return frame
+    # If no hands detected, overlay status and return frame
     if not detection_result.hand_landmarks:
+        status_text = "Thumb detected" if thumb_found else "No thumb"
+        cv2.putText(frame, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, COLOR_TEXT, 2)
         return frame, thumb_found
 
     # There may be multiple hands; process each
@@ -78,7 +110,7 @@ def detect_thumb_in_frame(frame, detector):
         tx = int(thumb_tip.x * w)
         ty = int(thumb_tip.y * h)
 
-        # Draw a filled circle at the thumb tip
+        # Draw a filled circle at the thumb tip on the original color frame
         cv2.circle(frame, (tx, ty), THUMB_MARKER_RADIUS, COLOR_THUMB, -1)
 
         # Compute bounding box from landmarks for visual feedback
@@ -94,7 +126,7 @@ def detect_thumb_in_frame(frame, detector):
         x2 = min(x_max + pad, w - 1)
         y2 = min(y_max + pad, h - 1)
 
-        # Draw bounding box and label
+        # Draw bounding box and label on the original frame
         cv2.rectangle(frame, (x1, y1), (x2, y2), COLOR_BOX, 2)
         cv2.putText(frame, "Thumb", (tx + 10, ty - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_TEXT, 2)
 
