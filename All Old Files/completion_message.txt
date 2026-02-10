@@ -1,8 +1,0 @@
-I have successfully modified the `GazeTracker` class in `src/detectors/gaze_tracker.py` and updated the `main.py` file to display the gaze direction as a single vector arrow originating from the nose, relative to the camera.
-
-Specifically, I have:
-1.  **Modified `GazeTracker.track_gaze`**: This method now calculates the 2D coordinates of the nose tip and a unified 2D gaze direction vector (originating from the nose) and stores them in the `debug_info` dictionary.
-2.  **Modified `GazeTracker.draw_gaze`**: This method now uses the `nose_tip_2d` as the arrow's origin and `gaze_direction_2d_from_nose` as its endpoint, both retrieved from `debug_info`.
-3.  **Updated `main.py`**: The call to `self.gaze_tracker.draw_gaze` in `MultiDetectionSystem.draw_results` was adjusted to match the new function signature, passing only the `debug_info` dictionary.
-
-The application ran without crashing, indicating the code changes are syntactically correct. You should now observe the gaze arrow being drawn from the nose on the video feed.
