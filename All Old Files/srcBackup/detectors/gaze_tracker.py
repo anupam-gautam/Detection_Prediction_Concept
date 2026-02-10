@@ -263,6 +263,10 @@ class GazeTracker:
         face_2d[:, 0] *= image_width
         face_2d[:, 1] *= image_height
         
+        # Store nose tip 2D
+        nose_tip_2d = face_2d[0].astype(int)
+        debug_info['nose_tip_2d'] = nose_tip_2d
+
         # Estimate head pose
         rotation_vec, translation_vec, success = self.estimate_head_pose(face_2d)
         if not success:
@@ -271,9 +275,15 @@ class GazeTracker:
         debug_info['head_rotation'] = rotation_vec
         debug_info['head_translation'] = translation_vec
         
-        # Get 3D eye center positions
+        # Get 3D eye center positions (model coordinates)
         left_eye_3d = self.face_3d_model[2]
         right_eye_3d = self.face_3d_model[3]
+
+        # Project eye centers to image for visualization
+        left_eye_2d = self.project_3d_to_2d(np.array([left_eye_3d], dtype=np.float32), rotation_vec, translation_vec)[0]
+        right_eye_2d = self.project_3d_to_2d(np.array([right_eye_3d], dtype=np.float32), rotation_vec, translation_vec)[0]
+        debug_info['left_eye_2d'] = left_eye_2d
+        debug_info['right_eye_2d'] = right_eye_2d
         
         # Get pupil locations
         left_pupil_2d = np.array([
@@ -289,6 +299,7 @@ class GazeTracker:
         # Compute gaze based on selected eye
         gaze_2d = None
         
+        gaze_vectors_cam = []
         if eye in ['left', 'both']:
             pupil_3d = self.get_pupil_3d_from_2d(left_pupil_2d, left_eye_3d)
             
@@ -299,6 +310,13 @@ class GazeTracker:
                     np.array([gaze_point_3d], dtype=np.float32),
                     rotation_vec, translation_vec
                 )[0]
+
+                # Convert gaze vector to camera coordinates (rotate only)
+                R, _ = cv2.Rodrigues(rotation_vec)
+                gaze_vector_cam = R @ gaze_vec.reshape(3, 1)
+                gaze_vectors_cam.append(gaze_vector_cam.ravel())
+                debug_info['gaze_vector_3d_cam_left'] = gaze_vector_cam.ravel()
+                debug_info['gaze_point_3d_left'] = gaze_point_3d
         
         if eye in ['right', 'both']:
             pupil_3d = self.get_pupil_3d_from_2d(right_pupil_2d, right_eye_3d)
@@ -315,16 +333,44 @@ class GazeTracker:
                     gaze_2d = gaze_2d_right
                 elif eye == 'both':
                     gaze_2d = (gaze_2d + gaze_2d_right) / 2
+
+                # Convert right gaze vector to camera coordinates
+                R, _ = cv2.Rodrigues(rotation_vec)
+                gaze_vector_cam_r = R @ gaze_vec.reshape(3, 1)
+                gaze_vectors_cam.append(gaze_vector_cam_r.ravel())
+                debug_info['gaze_vector_3d_cam_right'] = gaze_vector_cam_r.ravel()
+                debug_info['gaze_point_3d_right'] = gaze_point_3d
         
         if gaze_2d is not None:
             gaze_2d[0] = np.clip(gaze_2d[0], 0, image_width)
             gaze_2d[1] = np.clip(gaze_2d[1], 0, image_height)
             debug_info['success'] = True
             debug_info['gaze_point'] = gaze_2d
+
+            # For convenience include the final projected gaze point
+            debug_info['gaze_point_2d'] = gaze_2d
         
+        # Calculate single gaze vector from nose relative to camera
+        if gaze_vectors_cam:
+            avg_gaze_vector_cam = np.mean(gaze_vectors_cam, axis=0)
+            # Nose tip 3D position in camera coordinates is translation_vec
+            nose_tip_3d_cam = translation_vec.ravel()
+            
+            # Scale the gaze vector for visualization
+            gaze_vector_length = 100.0  # Adjustable length
+            gaze_endpoint_3d_cam = nose_tip_3d_cam + avg_gaze_vector_cam * gaze_vector_length
+            
+            # Project the gaze endpoint to 2D
+            gaze_direction_2d_from_nose = self.project_3d_to_2d(
+                np.array([gaze_endpoint_3d_cam], dtype=np.float32),
+                rotation_vec, translation_vec
+            )[0]
+            
+            debug_info['gaze_direction_2d_from_nose'] = gaze_direction_2d_from_nose.astype(int)
+            
         return gaze_2d, debug_info
     
-    def draw_gaze(self, frame: np.ndarray, gaze_2d: Optional[np.ndarray],
+    def draw_gaze(self, frame: np.ndarray, debug_info: dict = None,
                   color: Tuple[int, int, int] = (0, 255, 255),
                   thickness: int = 2) -> np.ndarray:
         """
@@ -332,25 +378,25 @@ class GazeTracker:
         
         Args:
             frame: Input frame
-            gaze_2d: 2D gaze point
+            debug_info: Dictionary containing debug information including gaze vectors
             color: Drawing color (BGR)
             thickness: Line thickness
             
         Returns:
             Frame with gaze visualization
         """
-        if gaze_2d is None:
+        if debug_info is None or not debug_info.get('success'):
             return frame
-        
-        h, w = frame.shape[:2]
-        x, y = int(gaze_2d[0]), int(gaze_2d[1])
-        
-        # Draw gaze point
-        cv2.circle(frame, (x, y), 8, color, 2)
-        cv2.circle(frame, (x, y), 3, color, -1)
-        
-        # Draw line from center to gaze point
-        center = (w // 2, h // 2)
-        cv2.line(frame, center, (x, y), (0, 255, 0), 1)
-        
+
+        nose_tip_2d = debug_info.get('nose_tip_2d')
+        gaze_direction_2d_from_nose = debug_info.get('gaze_direction_2d_from_nose')
+
+        if nose_tip_2d is not None and gaze_direction_2d_from_nose is not None:
+            # Draw arrow from nose tip to gaze direction endpoint
+            p1 = tuple(nose_tip_2d)
+            p2 = tuple(gaze_direction_2d_from_nose)
+            cv2.arrowedLine(frame, p1, p2, color, thickness, tipLength=0.2)
+            # Draw a small circle at the nose tip for clarity
+            cv2.circle(frame, p1, 3, (0, 255, 0), -1)
+
         return frame

@@ -18,15 +18,20 @@ All components run efficiently on CPU and can process video streams at ~30 FPS.
 
 ## 🚀 Quick Start
 
+This section provides the essential steps to get the project up and running quickly. For more detailed installation instructions and troubleshooting, please refer to the [SETUP.md](SETUP.md) guide.
+
 ### 1. Setup
 
 ```bash
-# Clone/navigate to project
+# Navigate to the project directory
 cd "Sign Language Detection"
 
-# Create virtual environment (optional but recommended)
+# (Optional) Create and activate a virtual environment
 python -m venv venv
-source venv/Scripts/activate  # Windows: venv\Scripts\activate
+# On Windows:
+.\venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -34,20 +39,21 @@ pip install -r requirements.txt
 
 ### 2. Download Models
 
-MediaPipe models are required. Download them from:
-- [hand_landmarker.task](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker)
-- [face_landmarker.task](https://developers.google.com/mediapipe/solutions/vision/face_landmarker)
+MediaPipe models are required for detection. Download them from the official MediaPipe solutions pages:
+- **Hand Landmarker**: [hand_landmarker.task](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker)
+- **Face Landmarker**: [face_landmarker.task](https://developers.google.com/mediapipe/solutions/vision/face_landmarker)
 
-Place them in the `models/` directory.
+Place the downloaded `.task` files into the `models/` directory in your project root.
 
 ### 3. Run the Application
 
 ```bash
-# Run with all detections enabled
+# Execute the main application
 python main.py
-
-# Press 'q' or ESC to exit
 ```
+A webcam feed should open, displaying real-time hand, face, and gaze detections. Press `q` or `ESC` to exit the application.
+
+---
 
 ## 📁 Project Structure
 
@@ -210,3 +216,13 @@ Feel free to modify and extend the system for your needs:
 ---
 
 **Last Updated**: February 2026
+
+## 📚 Documentation
+
+This project provides comprehensive documentation to help you understand, set up, and extend the system.
+
+*   **[SETUP.md](SETUP.md)**: Detailed step-by-step installation instructions and in-depth troubleshooting.
+*   **[QUICK_START.md](QUICK_START.md)**: A quick reference guide for common tasks, API examples, and configuration tips.
+*   **[REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)**: An overview of the codebase refactoring, new architecture, and removed components.
+*   **[COMPLETION_CHECKLIST.md](COMPLETION_CHECKLIST.md)**: A checklist of completed tasks, project status, and code quality metrics.
+*   **[INDEX.md](INDEX.md)**: A navigation guide and map of all documentation files in the project.

@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 from config import *
 from detectors import HandDetector, FaceDetector, GazeTracker
-from utils.visualization import draw_fps, draw_text, draw_info_panel, FPSCounter
+from utils.visualization import draw_fps, draw_text, draw_info_panel, FPSCounter, draw_hand_landmarks
 
 
 class MultiDetectionSystem:
@@ -162,7 +162,7 @@ class MultiDetectionSystem:
         """
         # Draw hand landmarks
         if results['hand_landmarks']:
-            frame = self.hand_detector.draw_hands(
+            frame = draw_hand_landmarks(
                 frame,
                 results['hand_landmarks'],
                 results['handedness'],
@@ -177,11 +177,11 @@ class MultiDetectionSystem:
                 color=COLOR_FACE
             )
         
-        # Draw gaze point
+        # Draw gaze point (with debug info for camera-relative arrow)
         if results['gaze_point'] is not None:
             frame = self.gaze_tracker.draw_gaze(
                 frame,
-                results['gaze_point'],
+                debug_info=results.get('gaze_info'),
                 color=COLOR_GAZE
             )
         
