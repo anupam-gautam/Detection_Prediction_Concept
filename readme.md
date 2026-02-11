@@ -119,3 +119,56 @@ VisionDetector loaded the MediaPipe model and initialized the camera
 The main loop processed frames and updated engagement state in real time
 
 All components initialized and operated correctly.
+
+--------------------------------------------------------------------------------
+Walkthrough - Active Laptop Usage Inference
+I have successfully implemented the Active Laptop Usage and Attention inference system. The system now uses a robust 
+InferenceEngine
+ to fuse multi-modal signals (Input, Face, Gaze) into a comprehensive engagement state.
+
+Changes Overview
+1. New 
+InferenceEngine
+Location: 
+src/fusion/engine.py
+Replaced the simple FusionEngine with a sophisticated logic engine.
+Key Features:
+Signal Normalization: Converts raw inputs (idle time, gaze ratio) to 0-1 scores.
+Logic Rules: Implements "Input Dominance", "Visual Validation", and "Absence Detection".
+Smoothing: Uses deque history to smooth output probabilities.
+Confidence: Calculates a confidence score based on signal strength and consistency.
+Metrics: Accumulates Active/Passive/Inactive durations over time.
+2. Main Application Update
+Location: 
+main.py
+Integrated 
+InferenceEngine
+.
+Added CAMERA_PREVIEW_ENABLED flag (set to True by default, easily togglable).
+Updated visualization to show "State", "Mode", "Confidence", and "Reasoning" on the video feed.
+Verification
+Automated Tests
+I created a unit test suite in 
+tests/test_inference_engine.py
+ covering 5 scenarios:
+
+High Input: Verifies "Active" state and "Interactive" mode.
+Visual Focus: Verifies "Active" state when user is looking at screen without input.
+Passive Presence: Verifies "Passive" state when user is present but looking away.
+Inactive: Verifies "Inactive" state when no signals are present.
+Metrics: Verifies time accumulation.
+Test Results:
+
+.....
+Ran 5 tests in 0.101s
+OK
+Manual Verification Steps
+To see the system in action:
+
+Run the application:
+bash
+python main.py
+Interactive: Type or move mouse -> Status should be Active.
+Reading: Stop typing, look at screen -> Status should be Active (Non-Interactive).
+Distrated: Look away -> Status should be Passive.
+Absent: Cover camera/move away -> Status should be Inactive.
