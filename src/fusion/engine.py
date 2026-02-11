@@ -25,6 +25,7 @@ class InferenceEngine:
             "Passive": 0.0,
             "Inactive": 0.0
         }
+        self.session_log = [] # List of tuples/dicts: (timestamp, state, confidence, etc.)
 
     def _normalize_input(self, idle_time):
         """
@@ -142,6 +143,16 @@ class InferenceEngine:
         if self.usage_state in self.state_durations:
             self.state_durations[self.usage_state] += dt
 
+        # Log Session Data
+        self.session_log.append({
+            "timestamp": current_time,
+            "state": self.usage_state,
+            "mode": self.attention_mode,
+            "prob": round(self.active_usage_probability, 3),
+            "conf": round(self.confidence_score, 2),
+            "input_idle": round(input_idle_time, 2)
+        })
+
         # 5. Confidence Level Mapping
         if self.confidence_score > 0.8:
             self.confidence_level = "High"
@@ -159,3 +170,63 @@ class InferenceEngine:
             "reasoning_summary": self.reasoning_summary,
             "metrics": {k: round(v, 1) for k, v in self.state_durations.items()}
         }
+
+    def export_session_data(self, raw_data_path, report_path):
+        """
+        Exports the session data to two files: raw data log and summary report.
+        Overwrites existing files.
+        """
+        import datetime
+
+        # 1. Export Raw Data
+        try:
+            with open(raw_data_path, 'w') as f:
+                f.write("Timestamp,State,Mode,Probability,Confidence,InputIdleTime\n")
+                for entry in self.session_log:
+                    ts = datetime.datetime.fromtimestamp(entry["timestamp"]).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+                    line = f"{ts},{entry['state']},{entry['mode']},{entry['prob']},{entry['conf']},{entry['input_idle']}\n"
+                    f.write(line)
+            print(f"Raw session data saved to {raw_data_path}")
+        except Exception as e:
+            print(f"Error saving raw data: {e}")
+
+        # 2. Export Summary Report 
+        try:
+            total_duration = sum(self.state_durations.values())
+            if total_duration == 0: total_duration = 0.001 # Avoid div/0
+
+            with open(report_path, 'w') as f:
+                f.write("==================================================\n")
+                f.write("       SESSION ANALYTICS REPORT\n")
+                f.write("==================================================\n\n")
+                
+                f.write(f"Session End Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Total Duration:   {total_duration:.2f} seconds\n\n")
+                
+                f.write("--------------------------------------------------\n")
+                f.write("ENGAGEMENT BREAKDOWN\n")
+                f.write("--------------------------------------------------\n")
+                for state, duration in self.state_durations.items():
+                    percentage = (duration / total_duration) * 100
+                    f.write(f"{state:<10}: {duration:6.2f}s ({percentage:5.1f}%)\n")
+                
+                f.write("\n--------------------------------------------------\n")
+                f.write("ATTENTION SUMMARY\n")
+                f.write("--------------------------------------------------\n")
+                
+                # Simple average attention score calculation (Active=1.0, Passive=0.5, Inactive=0.0)
+                # Weighted average
+                weighted_sum = (self.state_durations["Active"] * 1.0) + (self.state_durations["Passive"] * 0.5)
+                avg_attention = (weighted_sum / total_duration) * 100
+                
+                f.write(f"Average Engagement Score: {avg_attention:.1f} / 100\n")
+                
+                # Dominant State
+                dominant_state = max(self.state_durations, key=self.state_durations.get)
+                f.write(f"Dominant State:           {dominant_state}\n")
+                
+                f.write("\n==================================================\n")
+                
+            print(f"Session report saved to {report_path}")
+        except Exception as e:
+            print(f"Error saving session report: {e}")

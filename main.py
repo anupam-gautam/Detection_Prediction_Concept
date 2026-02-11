@@ -113,6 +113,11 @@ def main():
         print("Stopping system...")
         input_monitor.stop()
         vision_detector.stop()
+        
+        # Save Analytics
+        print("Saving session analytics...")
+        inference_engine.export_session_data("session_raw_log.txt", "session_report.txt")
+        
         if CAMERA_PREVIEW_ENABLED:
             cv2.destroyAllWindows()
 

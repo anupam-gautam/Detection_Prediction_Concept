@@ -1,174 +1,149 @@
-🖥️ On-Screen Time Detection System
-Overview
+# Active Laptop Usage & Attention Inference System
 
-This project implements an On-Screen Time Detection System that determines whether a user is actively engaged with their screen.
+## 1. Project Overview
+This project implements a real-time, multi-modal **Active Usage and Attention Inference System** for laptop users. It continuously monitors user engagement by fusing signals from:
+*   **Input Devices**: Keyboard and mouse activity.
+*   **Computer Vision**: Face presence and eye gaze tracking via a webcam.
 
-The system combines:
+The system determines whether the user is:
+*   **Active**: Intentionally using the laptop (Interactive or Focused Reading).
+*   **Passive**: Present but disengaged (e.g., looking away).
+*   **Inactive**: Absent or completely disengaged.
 
-Eye gaze estimation
+It is designed for robustness, dealing with missing signals (e.g., temporary camera failure) and prioritizing input activity (typing overrides lack of face detection).
 
-Face detection
+---
 
-Keyboard and mouse activity
+## 2. Key Features
+*   **Multi-Modal Fusion**: Combines input input (low latency) with computer vision (context).
+*   **Robust Inference Logic**:
+    *   **Input Dominance**: Typing/mousing is always considered "Active" regardless of gaze.
+    *   **Visual Validation**: If input is idle, face + gaze on screen confirms "Active (Reading)".
+*   **Temporal Smoothing**: Uses a history window to prevent flickering states.
+*   **Session Analytics**: Automatically records session data and generates detailed reports (`session_report.txt`) and raw logs (`session_raw_log.txt`) upon exit.
+*   **Privacy-Aware**: Runs locally; camera feed can be hidden/disabled via configuration.
 
-By fusing these signals, the system avoids common false negatives (e.g., typing while looking down) while remaining responsive and efficient in real time.
+---
 
-System Architecture
+## 3. Usage Guide
 
-The system consists of three main components:
+### Prerequisites
+*   Python 3.8+
+*   Webcam
+*   Dependencies: `opencv-python`, `mediapipe`, `pynput`, `numpy`
 
-Feature Extraction – Vision and input signals
+### Installation
+1.  Clone the repository.
+2.  Install dependencies:
+    ```bash
+    pip install opencv-python mediapipe pynput numpy
+    ```
 
-Feature Fusion – Decision logic with temporal smoothing
-
-Application Layer – Real-time execution and visualization
-
-Feature Extraction (src/features/)
-VisionDetector
-
-Purpose
-Handles all camera-based detection using MediaPipe FaceLandmarker.
-
-Outputs
-
-is_face_present
-
-True if a face is detected in the frame
-
-gaze_ratio
-
-Normalized horizontal gaze direction (0.0 – 1.0)
-
-is_looking_at_screen
-
-True if the gaze ratio is within the calibrated range (0.46 – 0.54)
-
-Key Improvements
-
-Face detection and gaze estimation are combined into a single pipeline
-
-Reduces redundant computation and simplifies downstream logic
-
-InputMonitor
-
-Purpose
-Tracks keyboard and mouse activity in the background.
-
-Outputs
-
-is_active(threshold=5)
-
-Returns True if any input occurred within the last threshold seconds
-
-get_idle_time()
-
-Returns the number of seconds since the last detected input
-
-Feature Fusion (src/fusion/)
-FusionEngine
-
-Purpose
-Aggregates vision and input signals to determine the final ON SCREEN / OFF SCREEN state.
-
-Decision Logic
-
-The user is considered ON SCREEN if any of the following conditions are met:
-
-The user is looking at the screen
-
-A face is detected and recent input activity is present
-
-(Handles cases where the user is typing or looking down at notes)
-
-Temporal Smoothing
-
-Uses a 5-frame rolling history to prevent flickering or unstable state changes
-
-Main Application (main.py)
-
-Description
-
-main.py runs the full system:
-
-Initializes all detectors
-
-Runs the fusion loop
-
-Displays the camera feed with a real-time engagement status overlay
-
-How to Run
-
-Activate your virtual environment (if applicable)
-
-Run the main script:
-
+### Running the System
+Execute the main script:
+```bash
 python main.py
+```
 
-Controls
+*   **Exit**: Press `Esc` in the camera window or `Ctrl+C` in the console.
+*   **Headless Mode**: Set `CAMERA_PREVIEW_ENABLED = False` in `main.py` to run without a video window.
 
-Esc — Exit the application
+### Output
+*   **Real-time**:
+    *   **Console**: Status updates / errors.
+    *   **Window**: Live video feed with overlay showing State, Confidence, and Reasoning.
+*   **Post-Session**:
+    *   `session_report.txt`: Summary of time spent in Active/Passive/Inactive states.
+    *   `session_raw_log.txt`: CSV-style log of every inference step.
 
-Verification Results
+---
 
-The system was verified by running main.py end-to-end:
+## 4. System Architecture & Workflow
 
-InputMonitor successfully attached keyboard and mouse listeners
+### A. High-Level Flow
+1.  **Capture**: `InputMonitor` tracks HID events; `VisionDetector` captures frames and runs AI models.
+2.  **Extract**: Raw signals (idle time, face landmarks, gaze vector) are extracted.
+3.  **normalize**: Raw signals are converted to 0.0-1.0 scores.
+4.  **Fuse & Infer**: `InferenceEngine` applies logic rules to determine the state.
+5.  **Smooth**: State probabilities are averaged over time.
+6.  **Act**: UI is updated, and metrics are logged.
 
-VisionDetector loaded the MediaPipe model and initialized the camera
-
-The main loop processed frames and updated engagement state in real time
-
-All components initialized and operated correctly.
-
---------------------------------------------------------------------------------
-Walkthrough - Active Laptop Usage Inference
-I have successfully implemented the Active Laptop Usage and Attention inference system. The system now uses a robust 
-InferenceEngine
- to fuse multi-modal signals (Input, Face, Gaze) into a comprehensive engagement state.
-
-Changes Overview
-1. New 
-InferenceEngine
-Location: 
-src/fusion/engine.py
-Replaced the simple FusionEngine with a sophisticated logic engine.
-Key Features:
-Signal Normalization: Converts raw inputs (idle time, gaze ratio) to 0-1 scores.
-Logic Rules: Implements "Input Dominance", "Visual Validation", and "Absence Detection".
-Smoothing: Uses deque history to smooth output probabilities.
-Confidence: Calculates a confidence score based on signal strength and consistency.
-Metrics: Accumulates Active/Passive/Inactive durations over time.
-2. Main Application Update
-Location: 
-main.py
-Integrated 
-InferenceEngine
+### B. Directory Structure
+```
 .
-Added CAMERA_PREVIEW_ENABLED flag (set to True by default, easily togglable).
-Updated visualization to show "State", "Mode", "Confidence", and "Reasoning" on the video feed.
-Verification
-Automated Tests
-I created a unit test suite in 
-tests/test_inference_engine.py
- covering 5 scenarios:
+├── main.py                  # Entry point. Orchestrates the loop.
+├── models/                  # ML models (MediaPipe Face Landmarker)
+├── src/
+│   ├── features/
+│   │   ├── input_monitor.py   # Tracks keyboard/mouse idle time via pynput.
+│   │   └── vision_detector.py # MediaPipe wrapper for face & gaze detection.
+│   └── fusion/
+│       └── engine.py        # CORE LOGIC: InferenceEngine class.
+└── tests/                   # Unit verification tests.
+```
 
-High Input: Verifies "Active" state and "Interactive" mode.
-Visual Focus: Verifies "Active" state when user is looking at screen without input.
-Passive Presence: Verifies "Passive" state when user is present but looking away.
-Inactive: Verifies "Inactive" state when no signals are present.
-Metrics: Verifies time accumulation.
-Test Results:
+---
 
-.....
-Ran 5 tests in 0.101s
-OK
-Manual Verification Steps
-To see the system in action:
+## 5. Detailed Concept & Algorithms
 
-Run the application:
-bash
-python main.py
-Interactive: Type or move mouse -> Status should be Active.
-Reading: Stop typing, look at screen -> Status should be Active (Non-Interactive).
-Distrated: Look away -> Status should be Passive.
-Absent: Cover camera/move away -> Status should be Inactive.
+### A. Input Monitor (`src/features/input_monitor.py`)
+*   **Concept**: Uses system hooks (pynput) to detect `on_move`, `on_click`, `on_press` events.
+*   **Metric**: `idle_time` (seconds since last event).
+*   **Logic**: If `idle_time < threshold`, user is interactively active.
+
+### B. Vision Detector (`src/features/vision_detector.py`)
+*   **Concept**: Uses Google MediaPipe Face Landmarker.
+*   **Metrics**:
+    *   `is_face_present`: Binary detection.
+    *   `gaze_ratio`: Horizontal iris position relative to eye corners (0.0=Left, 1.0=Right, 0.5=Center).
+    *   `is_looking_at_screen`: Thresholded `gaze_ratio` (0.46 - 0.54).
+
+### C. Inference Engine (`src/fusion/engine.py`)
+This is the "brain" of the system.
+
+#### 1. Signal Normalization
+*   **Input Score**: Exponential decay based on idle time.
+    *   `math.exp(-0.5 * idle_time)` -> High score immediately, decays to ~0 near 5s.
+*   **Gaze Score**: Linear mapping of deviation from center.
+    *   Closer to 0.5 (center) -> Higher score (1.0).
+
+#### 2. Decision Logic (The "Why")
+The engine prioritizes signals based on reliability:
+1.  **Level 1: Input Dominance**
+    *   IF `input_score > 0.6` -> **ACTIVE (Interactive)**
+    *   *Reasoning*: You cannot type without being there. Gaze is irrelevant (blind typing/glancing at notes).
+2.  **Level 2: Visual Validation** (When Input is Idle)
+    *   IF `Face` AND `Gaze on Screen` -> **ACTIVE (Non-Interactive)**
+    *   *Reasoning*: User is reading or watching content.
+3.  **Level 3: Presence but Distraction**
+    *   IF `Face` BUT `Gaze Away` -> **PASSIVE**
+    *   *Reasoning*: User is physically present but attention is elsewhere.
+4.  **Level 4: Absence**
+    *   IF `No Face` AND `No Input` -> **INACTIVE**
+    *   *Reasoning*: No evidence of user presence.
+
+#### 3. Confidence Scoring
+A score (0.0 - 1.0) is calculated to represent certainty:
+*   **High (0.9+)**: Strong input activity.
+*   **Medium (0.6-0.8)**: Visual signals only (camera noise can affect this).
+*   **Low (<0.5)**: Missing signals or conflicting data.
+
+#### 4. Temporal Smoothing
+*   A `deque` (sliding window) stores the last N probabilities.
+*   The final output probability is the **average** of this window.
+*   **Benefit**: Prevents the status from jumping "Active" -> "Inactive" -> "Active" instantly if the camera blips for 1 frame.
+
+---
+
+## 6. Analytics & Reporting
+When the session ends, the `InferenceEngine` exports data.
+*   **Duration Tracking**: Accumulates `dt` (time delta) for each state (Active, Passive, Inactive).
+*   **Report Generation**: text file summary of % time spent in each state and dominance analysis.
+
+---
+
+## 7. Configuration
+Key settings can be modified in `src/config.py` or defined constants in `main.py`:
+*   `CAMERA_PREVIEW_ENABLED`: Toggle video window.
+*   `smoothing_window`: Size of the average window (higher = more stable but more lag).
+*   `threshold_seconds` (in InputMonitor): Time before input is considered "Idle".
