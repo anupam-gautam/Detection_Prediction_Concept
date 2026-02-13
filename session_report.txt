@@ -2,20 +2,20 @@
        SESSION ANALYTICS REPORT
 ==================================================
 
-Session End Time: 2026-02-11 07:50:38
-Total Duration:   20.00 seconds
+Session End Time: 2026-02-12 22:48:27
+Total Duration:   338.52 seconds
 
 --------------------------------------------------
 ENGAGEMENT BREAKDOWN
 --------------------------------------------------
-Active    :  18.60s ( 93.0%)
-Passive   :   1.41s (  7.0%)
-Inactive  :   0.00s (  0.0%)
+Active    : 148.85s ( 44.0%)
+Passive   :   6.93s (  2.0%)
+Inactive  : 182.73s ( 54.0%)
 
 --------------------------------------------------
 ATTENTION SUMMARY
 --------------------------------------------------
-Average Engagement Score: 96.5 / 100
-Dominant State:           Active
+Average Engagement Score: 45.0 / 100
+Dominant State:           Inactive
 
 ==================================================

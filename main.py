@@ -11,7 +11,7 @@ from features.vision_detector import VisionDetector
 from fusion.engine import InferenceEngine
 
 # Runtime Flag for Camera Preview
-CAMERA_PREVIEW_ENABLED = True
+CAMERA_PREVIEW_ENABLED = True # Set to False to disable camera preview and run in background mode
 
 def main():
     # 1. Initialize Components
